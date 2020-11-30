@@ -22,12 +22,14 @@ var game = new Phaser.Game(config);
 function preload() {
   this.load.image("ship", "assets/spaceShips_001.png");
   this.load.image("otherPlayer", "assets/enemyBlack5.png");
+  this.load.image("projectile", "assets/purple_ball.png")
 }
 
 function create() {
   var self = this;
   this.socket = io();
   this.otherPlayers = this.physics.add.group();
+  this.otherProjectiles = this.physics.add.group();
   this.socket.on("currentPlayers", function (players) {
     Object.keys(players).forEach(function (id) {
       if (players[id].playerId === self.socket.id) {
@@ -37,8 +39,22 @@ function create() {
       }
     });
   });
+  this.socket.on("currentProjectiles", function (projectiles){
+    Object.keys(projectiles).forEach(function (id) {
+      if (projectiles[id].playerId === self.socket.id) {
+        addProjectile(self, projectiles[id]);
+      } else {
+        addOtherProjectiles(self, projectiles[id]);
+      }
+    });
+  })
   this.socket.on("newPlayer", function (playerInfo) {
+    console.log("new player added!")
     addOtherPlayers(self, playerInfo);
+  });
+  this.socket.on("newProjectile", function (projectileInfo) {
+    console.log("new projectile added!")
+    addProjectile(self, projectileInfo);
   });
   this.socket.on("disconnect", function (playerId) {
     self.otherPlayers.getChildren().forEach(function (otherPlayer) {
@@ -114,6 +130,13 @@ function update() {
     } else {
       this.ship.setAcceleration(0);
     }
+    if (this.cursors.up.isDown) {
+      this.socket.emit("createProjectile",{
+        x: this.ship.x,
+        y: this.ship.y,
+        rotation: this.ship.rotation
+      })
+    }
   }
 }
 
@@ -144,4 +167,45 @@ function addOtherPlayers(self, playerInfo) {
   }
   otherPlayer.playerId = playerInfo.playerId;
   self.otherPlayers.add(otherPlayer);
+}
+
+function addProjectile(self, projectileInfo) {
+  self.projectile = self.physics.add
+      .image(self.playerInfo.x, self.playerInfo.y, "projectile")
+      .setOrigin(0.5, 0.5)
+      .setDisplaySize(53, 40);
+  // if (playerInfo.team === "blue") {
+  //   self.ship.setTint(0x0000ff);
+  // } else {
+  //   self.ship.setTint(0xff0000);
+  // }
+  // self.ship.setDrag(100);
+  // self.ship.setAngularDrag(100);
+  // self.ship.setMaxVelocity(200);
+}
+
+function addOtherProjectiles(self, projectileInfo){
+  const projectile = self.add
+      .sprite(projectileInfo.x, projectileInfo.y, "projectile")
+      .setOrigin(0.5, 0.5)
+      .setDisplaySize(53, 40);
+  projectile.enableBody = true;
+
+  projectile.physicsBodyType = Phaser.Physics.ARCADE;
+  self.otherProjectiles.add(projectile);
+}
+
+function fire() {
+
+  if (game.time.now > nextFire && bullets.countDead() > 0)
+  {
+    nextFire = game.time.now + fireRate;
+
+    var bullet = bullets.getFirstDead();
+
+    bullet.reset(sprite.x - 8, sprite.y - 8);
+
+    game.physics.arcade.moveToPointer(bullet, 300);
+  }
+
 }
