@@ -61,8 +61,8 @@ io.on("connection", function (socket) {
     // create a new projectile and add it to our projectiles object
     projectiles[socket.id] = {
       rotation: 0,
-      x: Math.floor(Math.random() * 700) + 50,
-      y: Math.floor(Math.random() * 500) + 50,
+      x: projectileInfo.x,
+      y: projectileInfo.y,
       projectileId: socket.id,
     };
 

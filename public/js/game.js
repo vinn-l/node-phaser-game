@@ -54,7 +54,7 @@ function create() {
   });
   this.socket.on("newProjectile", function (projectileInfo) {
     console.log("new projectile added!")
-    addProjectile(self, projectileInfo);
+    addOtherProjectiles(self, projectileInfo);
   });
   this.socket.on("disconnect", function (playerId) {
     self.otherPlayers.getChildren().forEach(function (otherPlayer) {
@@ -131,11 +131,22 @@ function update() {
       this.ship.setAcceleration(0);
     }
     if (this.cursors.up.isDown) {
+      console.log("creating projectile");
       this.socket.emit("createProjectile",{
         x: this.ship.x,
         y: this.ship.y,
         rotation: this.ship.rotation
-      })
+      });
+      // addProjectile(self, {
+      //   x: this.ship.x,
+      //   y: this.ship.y,
+      //   rotation: this.ship.rotation
+      // });
+      this.physics.velocityFromRotation(
+          this.ship.rotation + 1.5,
+          500,
+          this.ship.body.acceleration
+      );
     }
   }
 }
@@ -174,6 +185,9 @@ function addProjectile(self, projectileInfo) {
       .image(self.playerInfo.x, self.playerInfo.y, "projectile")
       .setOrigin(0.5, 0.5)
       .setDisplaySize(53, 40);
+  self.projectile.setDrag(0);
+  self.projectile.setAngularDrag(0);
+  self.projectile.setMaxVelocity(1000);
   // if (playerInfo.team === "blue") {
   //   self.ship.setTint(0x0000ff);
   // } else {
