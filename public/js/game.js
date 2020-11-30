@@ -114,8 +114,6 @@ function update() {
     } else {
       this.ship.setAcceleration(0);
     }
-
-    // this.physics.world.wrap(this.ship, 5);
   }
 }
 
