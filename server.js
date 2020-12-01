@@ -4,7 +4,7 @@ var app = express();
 var server = require("http").Server(app);
 var io = require("socket.io").listen(server);
 var players = {};
-var projectiles = {};
+var projectiles = [[]];
 var scores = {
   blue: 0,
   red: 0,
@@ -32,8 +32,8 @@ io.on("connection", function (socket) {
 
   // send the players object to the new player
   socket.emit("currentPlayers", players);
-  // send current projectiles to new player
-  socket.emit("currentProjectiles", projectiles);
+  // // send current projectiles to new player
+  // socket.emit("currentProjectiles", projectiles);
   // send the current scores
   socket.emit("scoreUpdate", scores);
 
@@ -59,20 +59,21 @@ io.on("connection", function (socket) {
     // console.log("creating projectile");
 
     // create a new projectile and add it to our projectiles object
-    projectiles[socket.id] = {
+    if (!projectiles[socket.id]) projectiles[socket.id] = [];
+    projectiles[socket.id][projectileInfo.projectileId] = {
       rotation: 0,
       x: projectileInfo.x,
       y: projectileInfo.y,
-      projectileId: socket.id,
+      projectileId: projectileInfo.projectileId,
     };
-
-    socket.broadcast.emit("newProjectile", projectiles[socket.id]);
+    socket.broadcast.emit("newProjectile", projectiles[socket.id][projectileInfo.projectileId]);
   });
 
   socket.on("projectileMovement", function(projectileMovementData){
-    projectiles[socket.id].x = projectileMovementData.x;
-    projectiles[socket.id].y = projectileMovementData.y;
-    projectiles[socket.id].rotation = projectileMovementData.rotation;
+    // console.log(projectileMovementData);
+    projectiles[socket.id][projectileMovementData.projectileId].x = projectileMovementData.x;
+    projectiles[socket.id][projectileMovementData.projectileId].y = projectileMovementData.y;
+    projectiles[socket.id][projectileMovementData.projectileId].rotation = projectileMovementData.rotation;
     // emit a message to all players about the player that moved
-    socket.broadcast.emit("projectileMoved", projectiles[socket.id])  })
+    socket.broadcast.emit("projectileMoved", projectiles[socket.id][projectileMovementData.projectileId])  })
 });

@@ -17,6 +17,7 @@ var config = {
   },
 };
 
+var projectileId = 0;
 var game = new Phaser.Game(config);
 
 function preload() {
@@ -30,6 +31,7 @@ function create() {
   this.socket = io();
   this.otherPlayers = this.physics.add.group();
   this.otherProjectiles = this.physics.add.group();
+  this.projectiles = this.physics.add.group()
   this.socket.on("currentPlayers", function (players) {
     Object.keys(players).forEach(function (id) {
       if (players[id].playerId === self.socket.id) {
@@ -39,15 +41,11 @@ function create() {
       }
     });
   });
-  this.socket.on("currentProjectiles", function (projectiles){
-    Object.keys(projectiles).forEach(function (id) {
-      if (projectiles[id].playerId === self.socket.id) {
-        // addProjectile(self, projectiles[id]);
-      } else {
-        addOtherProjectiles(self, projectiles[id]);
-      }
-    });
-  })
+  // this.socket.on("currentProjectiles", function (projectiles){
+    //   //   Object.keys(projectiles).forEach(function (id) {
+    //   //       addOtherProjectiles(self, projectiles[id]);
+    //   //   });
+    //   // })
   this.socket.on("newPlayer", function (playerInfo) {
     console.log("new player added!")
     addOtherPlayers(self, playerInfo);
@@ -73,7 +71,7 @@ function create() {
   });
   this.socket.on("projectileMoved", function (projectileInfo){
       self.otherProjectiles.getChildren().forEach(function (otherProjectile) {
-          if (projectileInfo.playerId === otherProjectile.playerId) {
+          if (projectileInfo.projectileId === otherProjectile.projectileId) {
               otherProjectile.setRotation(projectileInfo.rotation);
               otherProjectile.setPosition(projectileInfo.x, projectileInfo.y);
           }
@@ -94,80 +92,112 @@ function create() {
     self.redScoreText.setText("Red: " + scores.red);
   });
   this.cursors = this.input.keyboard.createCursorKeys();
+    this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.lastFired = 0;
 }
 
-function update() {
+function update(time) {
     var self = this;
   if (this.ship) {
-    // emit player movement
-    var x = this.ship.x;
-    var y = this.ship.y;
-    var r = this.ship.rotation;
-    if (
-      this.ship.oldPosition &&
-      (x !== this.ship.oldPosition.x ||
-        y !== this.ship.oldPosition.y ||
-        r !== this.ship.oldPosition.rotation)
-    ) {
-      this.socket.emit("playerMovement", {
-        x: this.ship.x,
-        y: this.ship.y,
-        rotation: this.ship.rotation,
+      // emit player movement
+      var x = this.ship.x;
+      var y = this.ship.y;
+      var r = this.ship.rotation;
+      if (
+          this.ship.oldPosition &&
+          (x !== this.ship.oldPosition.x ||
+              y !== this.ship.oldPosition.y ||
+              r !== this.ship.oldPosition.rotation)
+      ) {
+          this.socket.emit("playerMovement", {
+              x: this.ship.x,
+              y: this.ship.y,
+              rotation: this.ship.rotation,
+          });
+      }
+
+      // save old position data
+      this.ship.oldPosition = {
+          x: this.ship.x,
+          y: this.ship.y,
+          rotation: this.ship.rotation,
+      };
+
+      if (this.cursors.left.isDown) {
+          this.ship.setAngularVelocity(-150);
+      } else if (this.cursors.right.isDown) {
+          this.ship.setAngularVelocity(150);
+      } else {
+          this.ship.setAngularVelocity(0);
+      }
+
+      if (this.cursors.up.isDown) {
+          this.physics.velocityFromRotation(
+              this.ship.rotation + 1.5,
+              100,
+              this.ship.body.acceleration
+          );
+      } else {
+          this.ship.setAcceleration(0);
+      }
+
+      if (this.spaceBar.isDown) {
+          if(time - this.lastFired > 500) {
+              addProjectile(self, this.ship.x, this.ship.y, this.ship.rotation);
+              console.log("creating projectile");
+              this.socket.emit("createProjectile", {
+                  x: this.projectile.x,
+                  y: this.projectile.y,
+                  rotation: this.projectile.rotation,
+                  projectileId: this.projectile.projectileId
+              });
+              this.physics.velocityFromRotation(
+                  this.projectile.rotation + 1.5,
+                  500,
+                  this.projectile.body.acceleration
+              );
+
+              this.lastFired = time;
+          }
+      }
+
+      this.projectiles.getChildren().forEach(function(projectile) {
+          self.socket.emit("projectileMovement", {
+              x: projectile.x,
+              y: projectile.y,
+              rotation: projectile.rotation,
+              projectileId: projectile.projectileId
+          });
       });
-    }
 
-    // save old position data
-    this.ship.oldPosition = {
-      x: this.ship.x,
-      y: this.ship.y,
-      rotation: this.ship.rotation,
-    };
-
-    if (this.cursors.left.isDown) {
-      this.ship.setAngularVelocity(-150);
-    } else if (this.cursors.right.isDown) {
-      this.ship.setAngularVelocity(150);
-    } else {
-      this.ship.setAngularVelocity(0);
-    }
-
-    if (this.cursors.up.isDown) {
-      this.physics.velocityFromRotation(
-        this.ship.rotation + 1.5,
-        100,
-        this.ship.body.acceleration
-      );
-    } else {
-      this.ship.setAcceleration(0);
-    }
-    if (!this.projectile) {
-        if (this.cursors.up.isDown) {
-            addProjectile(self, this.ship.x, this.ship.y, this.ship.rotation);
-            console.log("creating projectile");
-            this.socket.emit("createProjectile", {
-                x: this.projectile.x,
-                y: this.projectile.y,
-                rotation: this.projectile.rotation
-            });
-            // addProjectile(self, {
-            //   x: this.ship.x,
-            //   y: this.ship.y,
-            //   rotation: this.ship.rotation
-            // });
-            this.physics.velocityFromRotation(
-                this.projectile.rotation + 1.5,
-                500,
-                this.projectile.body.acceleration
-            );
-        }
-    }
-    else{
-        this.socket.emit("projectileMovement",{
-            x: this.projectile.x,
-            y: this.projectile.y,
-            rotation: this.projectile.rotation,
-        });
-    }
+      // if (!this.projectile) {
+      //     if (this.cursors.up.isDown) {
+      //         addProjectile(self, this.ship.x, this.ship.y, this.ship.rotation);
+      //         console.log("creating projectile");
+      //         this.socket.emit("createProjectile", {
+      //             x: this.projectile.x,
+      //             y: this.projectile.y,
+      //             rotation: this.projectile.rotation
+      //         });
+      //         // addProjectile(self, {
+      //         //   x: this.ship.x,
+      //         //   y: this.ship.y,
+      //         //   rotation: this.ship.rotation
+      //         // });
+      //         this.physics.velocityFromRotation(
+      //             this.projectile.rotation + 1.5,
+      //             500,
+      //             this.projectile.body.acceleration
+      //         );
+      //     }
+      // }
+      // else{
+      //     this.socket.emit("projectileMovement",{
+      //         x: this.projectile.x,
+      //         y: this.projectile.y,
+      //         rotation: this.projectile.rotation,
+      //     });
+      // }
   }
 }
 
@@ -209,6 +239,9 @@ function addProjectile(self, playerX, playerY, playerRotation) {
   self.projectile.setAngularDrag(0);
   self.projectile.rotation = playerRotation;
   self.projectile.setMaxVelocity(500);
+  self.projectile.projectileId = projectileId;
+  projectileId = projectileId + 1;
+  self.projectiles.add(self.projectile);
   // if (playerInfo.team === "blue") {
   //   self.ship.setTint(0x0000ff);
   // } else {
@@ -224,20 +257,6 @@ function addOtherProjectiles(self, projectileInfo){
       .sprite(projectileInfo.x, projectileInfo.y, "projectile")
       .setOrigin(0.5, 0.5)
       .setDisplaySize(20, 20);
+  otherProjectile.projectileId = projectileInfo.projectileId
   self.otherProjectiles.add(otherProjectile);
-}
-
-function fire() {
-
-  if (game.time.now > nextFire && bullets.countDead() > 0)
-  {
-    nextFire = game.time.now + fireRate;
-
-    var bullet = bullets.getFirstDead();
-
-    bullet.reset(sprite.x - 8, sprite.y - 8);
-
-    game.physics.arcade.moveToPointer(bullet, 300);
-  }
-
 }
