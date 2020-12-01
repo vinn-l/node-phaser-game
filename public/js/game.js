@@ -42,7 +42,7 @@ function create() {
   this.socket.on("currentProjectiles", function (projectiles){
     Object.keys(projectiles).forEach(function (id) {
       if (projectiles[id].playerId === self.socket.id) {
-        addProjectile(self, projectiles[id]);
+        // addProjectile(self, projectiles[id]);
       } else {
         addOtherProjectiles(self, projectiles[id]);
       }
@@ -71,6 +71,15 @@ function create() {
       }
     });
   });
+  this.socket.on("projectileMoved", function (projectileInfo){
+      self.otherProjectiles.getChildren().forEach(function (otherProjectile) {
+          if (projectileInfo.playerId === otherProjectile.playerId) {
+              otherProjectile.setRotation(projectileInfo.rotation);
+              otherProjectile.setPosition(projectileInfo.x, projectileInfo.y);
+          }
+      });
+  });
+
   this.blueScoreText = this.add.text(16, 16, "", {
     fontSize: "32px",
     fill: "#0000FF",
@@ -88,6 +97,7 @@ function create() {
 }
 
 function update() {
+    var self = this;
   if (this.ship) {
     // emit player movement
     var x = this.ship.x;
@@ -130,23 +140,33 @@ function update() {
     } else {
       this.ship.setAcceleration(0);
     }
-    if (this.cursors.up.isDown) {
-      console.log("creating projectile");
-      this.socket.emit("createProjectile",{
-        x: this.ship.x,
-        y: this.ship.y,
-        rotation: this.ship.rotation
-      });
-      // addProjectile(self, {
-      //   x: this.ship.x,
-      //   y: this.ship.y,
-      //   rotation: this.ship.rotation
-      // });
-      this.physics.velocityFromRotation(
-          this.ship.rotation + 1.5,
-          500,
-          this.ship.body.acceleration
-      );
+    if (!this.projectile) {
+        if (this.cursors.up.isDown) {
+            addProjectile(self, this.ship.x, this.ship.y, this.ship.rotation);
+            console.log("creating projectile");
+            this.socket.emit("createProjectile", {
+                x: this.projectile.x,
+                y: this.projectile.y,
+                rotation: this.projectile.rotation
+            });
+            // addProjectile(self, {
+            //   x: this.ship.x,
+            //   y: this.ship.y,
+            //   rotation: this.ship.rotation
+            // });
+            this.physics.velocityFromRotation(
+                this.projectile.rotation + 1.5,
+                500,
+                this.projectile.body.acceleration
+            );
+        }
+    }
+    else{
+        this.socket.emit("projectileMovement",{
+            x: this.projectile.x,
+            y: this.projectile.y,
+            rotation: this.projectile.rotation,
+        });
     }
   }
 }
@@ -180,14 +200,15 @@ function addOtherPlayers(self, playerInfo) {
   self.otherPlayers.add(otherPlayer);
 }
 
-function addProjectile(self, projectileInfo) {
+function addProjectile(self, playerX, playerY, playerRotation) {
   self.projectile = self.physics.add
-      .image(self.playerInfo.x, self.playerInfo.y, "projectile")
+      .image(playerX, playerY, "projectile")
       .setOrigin(0.5, 0.5)
-      .setDisplaySize(53, 40);
+      .setDisplaySize(20, 20);
   self.projectile.setDrag(0);
   self.projectile.setAngularDrag(0);
-  self.projectile.setMaxVelocity(1000);
+  self.projectile.rotation = playerRotation;
+  self.projectile.setMaxVelocity(500);
   // if (playerInfo.team === "blue") {
   //   self.ship.setTint(0x0000ff);
   // } else {
@@ -199,14 +220,11 @@ function addProjectile(self, projectileInfo) {
 }
 
 function addOtherProjectiles(self, projectileInfo){
-  const projectile = self.add
+  const otherProjectile = self.add
       .sprite(projectileInfo.x, projectileInfo.y, "projectile")
       .setOrigin(0.5, 0.5)
-      .setDisplaySize(53, 40);
-  projectile.enableBody = true;
-
-  projectile.physicsBodyType = Phaser.Physics.ARCADE;
-  self.otherProjectiles.add(projectile);
+      .setDisplaySize(20, 20);
+  self.otherProjectiles.add(otherProjectile);
 }
 
 function fire() {

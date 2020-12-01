@@ -68,4 +68,11 @@ io.on("connection", function (socket) {
 
     socket.broadcast.emit("newProjectile", projectiles[socket.id]);
   });
+
+  socket.on("projectileMovement", function(projectileMovementData){
+    projectiles[socket.id].x = projectileMovementData.x;
+    projectiles[socket.id].y = projectileMovementData.y;
+    projectiles[socket.id].rotation = projectileMovementData.rotation;
+    // emit a message to all players about the player that moved
+    socket.broadcast.emit("projectileMoved", projectiles[socket.id])  })
 });
