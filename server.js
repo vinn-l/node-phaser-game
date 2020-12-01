@@ -6,74 +6,73 @@ var io = require("socket.io").listen(server);
 var players = {};
 var projectiles = [[]];
 var scores = {
-  blue: 0,
-  red: 0,
+    blue: 0,
+    red: 0,
 };
 
 /* Incorporate dependencies */
 app.use(express.static(__dirname + "/public"));
 app.get("/", function (req, res) {
-  res.sendFile(__dirname + "/index.html");
+    res.sendFile(__dirname + "/index.html");
 });
 server.listen(8081, function () {
-  console.log(`Listening on ${server.address().port}`);
+    console.log(`Listening on ${server.address().port}`);
 });
 io.on("connection", function (socket) {
-  console.log("a user connected");
+    console.log("a user connected");
 
-  // create a new player and add it to our players object
-  players[socket.id] = {
-    rotation: 0,
-    x: Math.floor(Math.random() * 700) + 50,
-    y: Math.floor(Math.random() * 500) + 50,
-    playerId: socket.id,
-    team: Math.floor(Math.random() * 2) == 0 ? "red" : "blue",
-  };
-
-  // send the players object to the new player
-  socket.emit("currentPlayers", players);
-  // // send current projectiles to new player
-  // socket.emit("currentProjectiles", projectiles);
-  // send the current scores
-  socket.emit("scoreUpdate", scores);
-
-  // update all other players of the new player
-  socket.broadcast.emit("newPlayer", players[socket.id]);
-
-  socket.on("disconnect", function () {
-    console.log("user disconnected");
-    // remove this player from our players object
-    delete players[socket.id];
-    // emit a message to all players to remove this player
-    io.emit("disconnect", socket.id);
-    // when a player moves, update the player data
-  });
-  socket.on("playerMovement", function (movementData) {
-    players[socket.id].x = movementData.x;
-    players[socket.id].y = movementData.y;
-    players[socket.id].rotation = movementData.rotation;
-    // emit a message to all players about the player that moved
-    socket.broadcast.emit("playerMoved", players[socket.id]);
-  });
-  socket.on("createProjectile", function (projectileInfo) {
-    // console.log("creating projectile");
-
-    // create a new projectile and add it to our projectiles object
-    if (!projectiles[socket.id]) projectiles[socket.id] = [];
-    projectiles[socket.id][projectileInfo.projectileId] = {
-      rotation: 0,
-      x: projectileInfo.x,
-      y: projectileInfo.y,
-      projectileId: projectileInfo.projectileId,
+    // create a new player and add it to our players object
+    players[socket.id] = {
+        rotation: 0,
+        x: Math.floor(Math.random() * 700) + 50,
+        y: Math.floor(Math.random() * 500) + 50,
+        playerId: socket.id,
+        team: Math.floor(Math.random() * 2) == 0 ? "red" : "blue",
     };
-    socket.broadcast.emit("newProjectile", projectiles[socket.id][projectileInfo.projectileId]);
-  });
 
-  socket.on("projectileMovement", function(projectileMovementData){
-    // console.log(projectileMovementData);
-    projectiles[socket.id][projectileMovementData.projectileId].x = projectileMovementData.x;
-    projectiles[socket.id][projectileMovementData.projectileId].y = projectileMovementData.y;
-    projectiles[socket.id][projectileMovementData.projectileId].rotation = projectileMovementData.rotation;
-    // emit a message to all players about the player that moved
-    socket.broadcast.emit("projectileMoved", projectiles[socket.id][projectileMovementData.projectileId])  })
+    // send the players object to the new player
+    socket.emit("currentPlayers", players);
+    // // send current projectiles to new player
+    // socket.emit("currentProjectiles", projectiles);
+    // send the current scores
+    socket.emit("scoreUpdate", scores);
+
+    // update all other players of the new player
+    socket.broadcast.emit("newPlayer", players[socket.id]);
+
+    socket.on("disconnect", function () {
+        console.log("user disconnected");
+        // remove this player from our players object
+        delete players[socket.id];
+        // emit a message to all players to remove this player
+        io.emit("disconnect", socket.id);
+        // when a player moves, update the player data
+    });
+    socket.on("playerMovement", function (movementData) {
+        players[socket.id].x = movementData.x;
+        players[socket.id].y = movementData.y;
+        players[socket.id].rotation = movementData.rotation;
+        // emit a message to all players about the player that moved
+        socket.broadcast.emit("playerMoved", players[socket.id]);
+    });
+    socket.on("createProjectile", function (projectileInfo) {
+        // socket.id will tell us which projectile belongs to which user
+        // create a new projectile and add it to our projectiles object
+        if (!projectiles[socket.id]) projectiles[socket.id] = [];
+        projectiles[socket.id][projectileInfo.projectileId] = {
+            rotation: 0,
+            x: projectileInfo.x,
+            y: projectileInfo.y,
+            projectileId: projectileInfo.projectileId,
+        };
+        socket.broadcast.emit("newProjectile", projectiles[socket.id][projectileInfo.projectileId]);
+    });
+
+    socket.on("projectileMovement", function (projectileMovementData) {
+        projectiles[socket.id][projectileMovementData.projectileId].x = projectileMovementData.x;
+        projectiles[socket.id][projectileMovementData.projectileId].y = projectileMovementData.y;
+        projectiles[socket.id][projectileMovementData.projectileId].rotation = projectileMovementData.rotation;
+        // emit a message to all players about the projectile that moved
+        socket.broadcast.emit("projectileMoved", projectiles[socket.id][projectileMovementData.projectileId])
+    })
 });
