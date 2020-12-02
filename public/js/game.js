@@ -187,6 +187,7 @@ function addPlayer(self, playerInfo) {
     self.ship.setDrag(100);
     self.ship.setAngularDrag(100);
     self.ship.setMaxVelocity(200);
+    self.ship.setCollideWorldBounds(true);
 }
 
 function addOtherPlayers(self, playerInfo) {
@@ -214,6 +215,7 @@ function addProjectile(self, playerX, playerY, playerRotation) {
     self.projectile.rotation = playerRotation;
     self.projectile.setMaxVelocity(500);
     self.projectile.projectileId = projectileId;
+    self.projectile.setCollideWorldBounds(true);
     projectileId = projectileId + 1;
     self.projectiles.add(self.projectile);
     // if (playerInfo.team === "blue") {
