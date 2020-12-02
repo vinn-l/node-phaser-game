@@ -216,6 +216,12 @@ function addProjectile(self, playerX, playerY, playerRotation) {
     self.projectile.setMaxVelocity(500);
     self.projectile.projectileId = projectileId;
     self.projectile.setCollideWorldBounds(true);
+    self.projectile.body.onWorldBounds = true;
+    self.projectile.body.world.on('worldbounds', function(body) {
+        if (body.gameObject === this) {
+            this.destroy();
+        }
+    }, self.projectile);
     projectileId = projectileId + 1;
     self.projectiles.add(self.projectile);
     // if (playerInfo.team === "blue") {
