@@ -88,12 +88,17 @@ function create() {
     });
 
     this.socket.on("scoreUpdate", function (scores) {
+        console.log("receive scoreUpdate");
         self.blueScoreText.setText("Blue: " + scores.blue);
         self.redScoreText.setText("Red: " + scores.red);
     });
+
     this.cursors = this.input.keyboard.createCursorKeys();
     this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.lastFired = 0;
+    this.respawnTimer = [];
+
+
 }
 
 function update(time) {
@@ -157,20 +162,75 @@ function update(time) {
                     500,
                     this.projectile.body.acceleration
                 );
-
                 this.lastFired = time;
             }
         }
 
         // handle projectile physics here and send it to the server
         this.projectiles.getChildren().forEach(function (projectile) {
-            self.socket.emit("projectileMovement", {
-                x: projectile.x,
-                y: projectile.y,
-                rotation: projectile.rotation,
-                projectileId: projectile.projectileId
+            if (!(projectile.x >= 820 || projectile.x < -20) && !(projectile.y >= 620 || projectile.y < -20)) {
+                self.socket.emit("projectileMovement", {
+                    x: projectile.x,
+                    y: projectile.y,
+                    rotation: projectile.rotation,
+                    projectileId: projectile.projectileId
+                });
+            }
+            else{
+                projectile.destroy();
+                console.log("Destroyed projectile");
+                self.projectiles.remove(projectile);
+            }
+        });
+
+
+        // check if ship hits a projectile, only if ship is alive
+        this.otherProjectiles.getChildren().forEach(function (projectile){
+            if (!(projectile.x >= 800 || projectile.x < 0  || projectile.y >= 800 || projectile.y < 0)) {
+                if (self.ship.alpha === 1) {
+                    if ((Math.abs(self.ship.x - projectile.x) <= 30) && (Math.abs(self.ship.y - projectile.y) <= 30)) {
+                        console.log("Ship explode");
+                        self.socket.emit("shipExploded");
+                        self.ship.alpha = 0.5;
+                        self.respawnTimer[self.ship.playerId] = time;
+                    }
+                }
+            }
+            else {
+                console.log("Destroyed projectile");
+                projectile.destroy();
+                self.otherProjectiles.remove(projectile);
+                }
+        });
+
+        // If ship is dead, respawn when 2.5s is up.
+        if (self.ship.alpha === 0.5){
+            // console.log(time);
+            // console.log(self.respawnTimer);
+            if (time - self.respawnTimer[self.ship.playerId] > 2500){
+                console.log("Respawn");
+                self.ship.alpha = 1.0;
+            }
+        }
+
+        this.socket.on("shipExploded", function (socketId){
+            self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+                if (otherPlayer.playerId === socketId) {
+                    otherPlayer.alpha = 0.5;
+                    self.respawnTimer[socketId] = time;
+                }
             });
         });
+
+        // render other ships alpha to 1 when time is up.
+        this.otherPlayers.getChildren().forEach(function (player){
+            if (player.alpha === 0.5){
+                if (time - self.respawnTimer[player.playerId] > 2500){
+                    console.log("Respawn other player");
+                    player.alpha = 1.0;
+                }
+            }
+        })
     }
 }
 
@@ -214,6 +274,14 @@ function addProjectile(self, playerX, playerY, playerRotation) {
     self.projectile.rotation = playerRotation;
     self.projectile.setMaxVelocity(500);
     self.projectile.projectileId = projectileId;
+    self.projectile.setCollideWorldBounds(true);
+    self.projectile.body.onWorldBounds = true;
+    self.projectile.body.world.on('worldbounds', function(body) {
+        if (body.gameObject === this) {
+            this.destroy();
+            self.projectiles.remove(self.projectile);
+        }
+    }, self.projectile);
     projectileId = projectileId + 1;
     self.projectiles.add(self.projectile);
     // if (playerInfo.team === "blue") {
