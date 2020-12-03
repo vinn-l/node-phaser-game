@@ -10,6 +10,8 @@ var scores = {
     red: 0,
 };
 
+var alternateTeams = true;
+
 /* Incorporate dependencies */
 app.use(express.static(__dirname + "/public"));
 app.get("/", function (req, res) {
@@ -23,12 +25,13 @@ io.on("connection", function (socket) {
 
     // create a new player and add it to our players object
     players[socket.id] = {
-        rotation: 0,
+        rotation: alternateTeams ? 0 : 180,
         x: Math.floor(Math.random() * 700) + 50,
-        y: Math.floor(Math.random() * 500) + 50,
+        y: alternateTeams? Math.floor(Math.random() * 100) + 50 :  Math.floor(Math.random() * 100) + 350 + 50,
         playerId: socket.id,
-        team: Math.floor(Math.random() * 2) == 0 ? "red" : "blue",
+        team: alternateTeams ? "red" : "blue",
     };
+    alternateTeams = !alternateTeams;
 
     // send the players object to the new player
     socket.emit("currentPlayers", players);
@@ -74,5 +77,23 @@ io.on("connection", function (socket) {
         projectiles[socket.id][projectileMovementData.projectileId].rotation = projectileMovementData.rotation;
         // emit a message to all players about the projectile that moved
         socket.broadcast.emit("projectileMoved", projectiles[socket.id][projectileMovementData.projectileId])
+    })
+
+    socket.on("shipExploded", function() {
+        if (players[socket.id].team === "blue"){
+            scores["red"] += 1;
+            console.log("red + 1");
+
+        }
+        else{
+            scores["blue"] += 1;
+            console.log("blue + 1");
+
+        }
+        socket.emit("shipExploded", socket.id);
+        socket.emit("scoreUpdate", scores);
+        socket.broadcast.emit("shipExploded", socket.id);
+        socket.broadcast.emit("scoreUpdate", scores);
+        console.log("broadcast scoreUpdate");
     })
 });
