@@ -6,7 +6,7 @@ var io = require("socket.io").listen(server);
 var players = {};
 var projectiles = [[]];
 var scores = {
-    blue: 0,
+    white: 0,
     red: 0,
 };
 
@@ -29,7 +29,7 @@ io.on("connection", function (socket) {
         x: Math.floor(Math.random() * 700) + 50,
         y: alternateTeams? Math.floor(Math.random() * 100) + 50 :  Math.floor(Math.random() * 100) + 350 + 50,
         playerId: socket.id,
-        team: alternateTeams ? "red" : "blue",
+        team: alternateTeams ? "red" : "white",
     };
     alternateTeams = !alternateTeams;
 
@@ -80,20 +80,18 @@ io.on("connection", function (socket) {
     })
 
     socket.on("shipExploded", function() {
-        if (players[socket.id].team === "blue"){
+        if (players[socket.id].team === "white"){
             scores["red"] += 1;
             console.log("red + 1");
 
         }
         else{
-            scores["blue"] += 1;
-            console.log("blue + 1");
+            scores["white"] += 1;
+            console.log("white + 1");
 
         }
-        socket.emit("shipExploded", socket.id);
-        socket.emit("scoreUpdate", scores);
-        socket.broadcast.emit("shipExploded", socket.id);
-        socket.broadcast.emit("scoreUpdate", scores);
+        io.emit("shipExploded", socket.id);
+        io.emit("scoreUpdate", scores);
         console.log("broadcast scoreUpdate");
     })
 });

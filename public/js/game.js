@@ -21,8 +21,9 @@ var projectileId = 0;
 var game = new Phaser.Game(config);
 
 function preload() {
-    this.load.image("ship", "assets/spaceShips_001.png");
-    this.load.image("otherPlayer", "assets/enemyBlack5.png");
+    this.load.image("sky", "assets/bluemoon.png");
+    this.load.image("shipWhite", "assets/spaceship.png");
+    this.load.image("shipRed", "assets/spaceshipEnemy.png");
     this.load.image("projectile", "assets/purple_ball.png")
 }
 
@@ -33,6 +34,9 @@ function create() {
     this.otherPlayers = this.physics.add.group();
     this.otherProjectiles = this.physics.add.group();
     this.projectiles = this.physics.add.group()
+
+    // Add background image
+    this.add.image(400, 300, 'sky');
 
     // Render current players on the field received from server when we just joined the game.
     this.socket.on("currentPlayers", function (players) {
@@ -87,18 +91,20 @@ function create() {
     });
 
     // Text display for the scores of each team.
-    this.blueScoreText = this.add.text(16, 16, "", {
-        fontSize: "32px",
-        fill: "#0000FF",
+    this.whiteScoreText = this.add.text(16, 16, "", {
+        font: 'bold 20pt Roboto',
+        fill: "#FFFFFF",
     });
-    this.redScoreText = this.add.text(584, 16, "", {
-        fontSize: "32px",
-        fill: "#FF0000",
+    this.redScoreText = this.add.text(16, 60, "", {
+        // fontStyle: "Arial",
+        font: 'bold 20pt Roboto',
+        // fontSize: "25px",
+        fill: "#FF0000"
     });
 
     this.socket.on("scoreUpdate", function (scores) {
         console.log("receive scoreUpdate");
-        self.blueScoreText.setText("Blue: " + scores.blue);
+        self.whiteScoreText.setText("White: " + scores.white);
         self.redScoreText.setText("Red: " + scores.red);
     });
 
@@ -212,16 +218,16 @@ function update(time) {
 }
 
 function addPlayer(self, playerInfo) {
-    self.ship = self.physics.add
-        .image(playerInfo.x, playerInfo.y, "ship")
-        .setOrigin(0.5, 0.5)
-        .setDisplaySize(53, 40);
-    if (playerInfo.team === "blue") {
-        self.ship.setTint(0x0000ff);
-
-    } else {
-        self.ship.setTint(0xff0000);
-    }
+    self.ship = playerInfo.team === "white"?
+        self.physics.add
+            .sprite(playerInfo.x, playerInfo.y, "shipWhite")
+            .setOrigin(0.5, 0.5)
+            .setDisplaySize(53, 40)
+        :
+        self.physics.add
+            .sprite(playerInfo.x, playerInfo.y, "shipRed")
+            .setOrigin(0.5, 0.5)
+            .setDisplaySize(53, 40);
     self.ship.rotation = playerInfo.rotation;
     self.ship.setDrag(20);
     self.ship.setAngularDrag(20);
@@ -230,15 +236,16 @@ function addPlayer(self, playerInfo) {
 }
 
 function addOtherPlayers(self, playerInfo) {
-    const otherPlayer = self.add
-        .sprite(playerInfo.x, playerInfo.y, "otherPlayer")
-        .setOrigin(0.5, 0.5)
-        .setDisplaySize(53, 40);
-    if (playerInfo.team === "blue") {
-        otherPlayer.setTint(0x0000ff);
-    } else {
-        otherPlayer.setTint(0xff0000);
-    }
+    const otherPlayer = playerInfo.team === "white"?
+        self.add
+            .sprite(playerInfo.x, playerInfo.y, "shipWhite")
+            .setOrigin(0.5, 0.5)
+            .setDisplaySize(53, 40)
+        :
+        self.add
+            .sprite(playerInfo.x, playerInfo.y, "shipRed")
+            .setOrigin(0.5, 0.5)
+            .setDisplaySize(53, 40);
     otherPlayer.rotation = playerInfo.rotation;
     otherPlayer.playerId = playerInfo.playerId;
     self.otherPlayers.add(otherPlayer);
@@ -249,7 +256,7 @@ function addProjectile(self, playerX, playerY, playerRotation) {
     self.projectile = self.physics.add
         .image(playerX, playerY, "projectile")
         .setOrigin(0.5, 0.5)
-        .setDisplaySize(20, 20);
+        .setDisplaySize(14, 14);
     self.projectile.setDrag(0);
     self.projectile.setAngularDrag(0);
     self.projectile.rotation = playerRotation;
@@ -265,7 +272,7 @@ function addProjectile(self, playerX, playerY, playerRotation) {
     }, self.projectile);
     projectileId = projectileId + 1;
     self.projectiles.add(self.projectile);
-    // if (playerInfo.team === "blue") {
+    // if (playerInfo.team === "white") {
     //   self.ship.setTint(0x0000ff);
     // } else {
     //   self.ship.setTint(0xff0000);
@@ -280,7 +287,7 @@ function addOtherProjectiles(self, projectileInfo) {
     const otherProjectile = self.add
         .sprite(projectileInfo.x, projectileInfo.y, "projectile")
         .setOrigin(0.5, 0.5)
-        .setDisplaySize(20, 20);
+        .setDisplaySize(14, 14);
     otherProjectile.projectileId = projectileInfo.projectileId;
     self.otherProjectiles.add(otherProjectile);
 }
