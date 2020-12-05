@@ -218,10 +218,11 @@ function addPlayer(self, playerInfo) {
         .setDisplaySize(53, 40);
     if (playerInfo.team === "blue") {
         self.ship.setTint(0x0000ff);
-        self.ship.rotation= (3.14);
+
     } else {
         self.ship.setTint(0xff0000);
     }
+    self.ship.rotation = playerInfo.rotation;
     self.ship.setDrag(20);
     self.ship.setAngularDrag(20);
     self.ship.setMaxVelocity(400);
@@ -238,6 +239,7 @@ function addOtherPlayers(self, playerInfo) {
     } else {
         otherPlayer.setTint(0xff0000);
     }
+    otherPlayer.rotation = playerInfo.rotation;
     otherPlayer.playerId = playerInfo.playerId;
     self.otherPlayers.add(otherPlayer);
 }

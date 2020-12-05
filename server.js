@@ -25,7 +25,7 @@ io.on("connection", function (socket) {
 
     // create a new player and add it to our players object
     players[socket.id] = {
-        rotation: alternateTeams ? 0 : 180,
+        rotation: alternateTeams ? 0 : 3.14,
         x: Math.floor(Math.random() * 700) + 50,
         y: alternateTeams? Math.floor(Math.random() * 100) + 50 :  Math.floor(Math.random() * 100) + 350 + 50,
         playerId: socket.id,
