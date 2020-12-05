@@ -28,10 +28,13 @@ function preload() {
 
 function create() {
     var self = this;
+
     this.socket = io();
     this.otherPlayers = this.physics.add.group();
     this.otherProjectiles = this.physics.add.group();
     this.projectiles = this.physics.add.group()
+
+    // Render current players on the field received from server when we just joined the game.
     this.socket.on("currentPlayers", function (players) {
         Object.keys(players).forEach(function (id) {
             if (players[id].playerId === self.socket.id) {
@@ -41,19 +44,20 @@ function create() {
             }
         });
     });
-    // this.socket.on("currentProjectiles", function (projectiles){
-    //   //   Object.keys(projectiles).forEach(function (id) {
-    //   //       addOtherProjectiles(self, projectiles[id]);
-    //   //   });
-    //   // })
+
+    // Render new player ship when received from server.
     this.socket.on("newPlayer", function (playerInfo) {
         console.log("new player added!")
         addOtherPlayers(self, playerInfo);
     });
+
+    // Render new projectile created when received from server.
     this.socket.on("newProjectile", function (projectileInfo) {
         console.log("new projectile added!")
         addOtherProjectiles(self, projectileInfo);
     });
+
+    // Destroy ship if player disconnected
     this.socket.on("disconnect", function (playerId) {
         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
             if (playerId === otherPlayer.playerId) {
@@ -61,6 +65,8 @@ function create() {
             }
         });
     });
+
+    // Render movement of ships when received data from server.
     this.socket.on("playerMoved", function (playerInfo) {
         self.otherPlayers.getChildren().forEach(function (otherPlayer) {
             if (playerInfo.playerId === otherPlayer.playerId) {
@@ -69,6 +75,8 @@ function create() {
             }
         });
     });
+
+    // Render movement of projectiles when received data from server.
     this.socket.on("projectileMoved", function (projectileInfo) {
         self.otherProjectiles.getChildren().forEach(function (otherProjectile) {
             if (projectileInfo.projectileId === otherProjectile.projectileId) {
@@ -78,6 +86,7 @@ function create() {
         });
     });
 
+    // Text display for the scores of each team.
     this.blueScoreText = this.add.text(16, 16, "", {
         fontSize: "32px",
         fill: "#0000FF",
@@ -93,12 +102,16 @@ function create() {
         self.redScoreText.setText("Red: " + scores.red);
     });
 
+    // Create cursors and spacebar input recognizer
     this.cursors = this.input.keyboard.createCursorKeys();
     this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+    // Variables for projectile firing cooldown and respawn timer.
     this.lastFired = 0;
     this.respawnTimer = [];
 
-
+    // Handler for movement of own spaceship.
+    this.MovementHandler = new MovementHandler(this);
 }
 
 function update(time) {
@@ -128,47 +141,11 @@ function update(time) {
             rotation: this.ship.rotation,
         };
 
-        if (this.cursors.left.isDown) {
-            this.ship.setAngularVelocity(-150);
-        } else if (this.cursors.right.isDown) {
-            this.ship.setAngularVelocity(150);
-        } else {
-            this.ship.setAngularVelocity(0);
-        }
-
-        if (this.cursors.up.isDown) {
-            this.physics.velocityFromRotation(
-                this.ship.rotation + 1.5,
-                100,
-                this.ship.body.acceleration
-            );
-        } else {
-            this.ship.setAcceleration(0);
-        }
-
-        // if spacebar hold down, we shoot projectile
-        if (this.spaceBar.isDown) {
-            if (time - this.lastFired > 500) {
-                addProjectile(self, this.ship.x, this.ship.y, this.ship.rotation);
-                console.log("creating projectile");
-                this.socket.emit("createProjectile", {
-                    x: this.projectile.x,
-                    y: this.projectile.y,
-                    rotation: this.projectile.rotation,
-                    projectileId: this.projectile.projectileId
-                });
-                this.physics.velocityFromRotation(
-                    this.projectile.rotation + 1.5,
-                    500,
-                    this.projectile.body.acceleration
-                );
-                this.lastFired = time;
-            }
-        }
+        this.MovementHandler.handleMovement();
 
         // handle projectile physics here and send it to the server
         this.projectiles.getChildren().forEach(function (projectile) {
-            if (!(projectile.x >= 820 || projectile.x < -20) && !(projectile.y >= 620 || projectile.y < -20)) {
+            if (!(projectile.x >= 900 || projectile.x < -100) && !(projectile.y >= 700 || projectile.y < -100)) {
                 self.socket.emit("projectileMovement", {
                     x: projectile.x,
                     y: projectile.y,
@@ -241,12 +218,14 @@ function addPlayer(self, playerInfo) {
         .setDisplaySize(53, 40);
     if (playerInfo.team === "blue") {
         self.ship.setTint(0x0000ff);
+
     } else {
         self.ship.setTint(0xff0000);
     }
-    self.ship.setDrag(100);
-    self.ship.setAngularDrag(100);
-    self.ship.setMaxVelocity(200);
+    self.ship.rotation = playerInfo.rotation;
+    self.ship.setDrag(20);
+    self.ship.setAngularDrag(20);
+    self.ship.setMaxVelocity(400);
     self.ship.setCollideWorldBounds(true);
 }
 
@@ -260,6 +239,7 @@ function addOtherPlayers(self, playerInfo) {
     } else {
         otherPlayer.setTint(0xff0000);
     }
+    otherPlayer.rotation = playerInfo.rotation;
     otherPlayer.playerId = playerInfo.playerId;
     self.otherPlayers.add(otherPlayer);
 }
@@ -273,7 +253,7 @@ function addProjectile(self, playerX, playerY, playerRotation) {
     self.projectile.setDrag(0);
     self.projectile.setAngularDrag(0);
     self.projectile.rotation = playerRotation;
-    self.projectile.setMaxVelocity(500);
+    self.projectile.setMaxVelocity(1000);
     self.projectile.projectileId = projectileId;
     self.projectile.setCollideWorldBounds(true);
     self.projectile.body.onWorldBounds = true;
@@ -301,7 +281,88 @@ function addOtherProjectiles(self, projectileInfo) {
         .sprite(projectileInfo.x, projectileInfo.y, "projectile")
         .setOrigin(0.5, 0.5)
         .setDisplaySize(20, 20);
-    otherProjectile.setTint(0x0000ff);
     otherProjectile.projectileId = projectileInfo.projectileId;
     self.otherProjectiles.add(otherProjectile);
+}
+
+const movesets = {
+    ACCELERATE_FORWARD: 'accelerate_forward',
+    ROTATE_LEFT: 'rotate_left',
+    ROTATE_RIGHT: 'rotate_right',
+    DECELERATE_ROTATION: 'decelerate_rotation',
+    DECELERATE_FORWARD: 'decelerate_forward',
+    SHOOT: 'shoot'
+}
+
+class MovementHandler {
+    constructor(parent) {
+        this.parent = parent;
+    }
+
+    handleMovement() {
+        if (this.parent.cursors.left.isDown) {
+            this.performAction(movesets.ROTATE_LEFT);
+        } else if (this.parent.cursors.right.isDown) {
+            this.performAction(movesets.ROTATE_RIGHT);
+        } else {
+            this.performAction(movesets.DECELERATE_ROTATION);
+        }
+
+        if (this.parent.cursors.up.isDown) {
+            this.performAction(movesets.ACCELERATE_FORWARD);
+        } else {
+            this.performAction(movesets.DECELERATE_FORWARD);
+        }
+
+// if spacebar hold down, we shoot projectile
+        if (this.parent.spaceBar.isDown) {
+            this.performAction(movesets.SHOOT);
+        }
+    }
+
+    performAction(action){
+
+        switch (action) {
+            case movesets.ACCELERATE_FORWARD:
+                this.parent.physics.velocityFromRotation(
+                    this.parent.ship.rotation + 1.5,
+                    300,
+                    this.parent.ship.body.acceleration
+                );
+                break;
+            case movesets.ROTATE_LEFT:
+                this.parent.ship.setAngularVelocity(-300);
+                break;
+            case movesets.ROTATE_RIGHT:
+                this.parent.ship.setAngularVelocity(300);
+                break;
+            case movesets.DECELERATE_ROTATION:
+                this.parent.ship.setAngularVelocity(0);
+                break;
+            case movesets.DECELERATE_FORWARD:
+                this.parent.ship.setAcceleration(0);
+                break;
+            case movesets.SHOOT:
+                if (this.parent.time.now - this.parent.lastFired > 500) {
+                    console.log("addProjectile")
+                    addProjectile(this.parent, this.parent.ship.x, this.parent.ship.y, this.parent.ship.rotation);
+                    console.log("creating projectile");
+                    this.parent.socket.emit("createProjectile", {
+                        x: this.parent.projectile.x,
+                        y: this.parent.projectile.y,
+                        rotation: this.parent.projectile.rotation,
+                        projectileId: this.parent.projectile.projectileId
+                    });
+                    this.parent.physics.velocityFromRotation(
+                        this.parent.projectile.rotation + 1.5,
+                        1000,
+                        this.parent.projectile.body.acceleration
+                    );
+                    this.parent.lastFired = this.parent.time.now;
+                };
+                break;
+            default:
+                break;
+        }
+    }
 }
