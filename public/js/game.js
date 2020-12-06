@@ -166,30 +166,12 @@ function update(time) {
             }
         });
 
-
+        // CollisionHandler
         // check if ship hits a projectile, only if ship is alive
-        this.otherProjectiles.getChildren().forEach(function (projectile){
-            if (!(projectile.x >= 800 || projectile.x < 0  || projectile.y >= 800 || projectile.y < 0)) {
-                if (self.ship.alpha === 1) {
-                    if ((Math.abs(self.ship.x - projectile.x) <= 30) && (Math.abs(self.ship.y - projectile.y) <= 30)) {
-                        console.log("Ship explode");
-                        self.socket.emit("shipExploded");
-                        self.ship.alpha = 0.5;
-                        self.respawnTimer[self.ship.playerId] = time;
-                    }
-                }
-            }
-            else {
-                console.log("Destroyed projectile");
-                projectile.destroy();
-                self.otherProjectiles.remove(projectile);
-                }
-        });
+        collisionHandler(self);
 
         // If ship is dead, respawn when 2.5s is up.
         if (self.ship.alpha === 0.5){
-            // console.log(time);
-            // console.log(self.respawnTimer);
             if (time - self.respawnTimer[self.ship.playerId] > 2500){
                 console.log("Respawn");
                 self.ship.alpha = 1.0;
@@ -215,6 +197,20 @@ function update(time) {
             }
         })
     }
+}
+
+// Handles collision between spaceship and projectile
+function collisionHandler(self) {
+    self.otherProjectiles.getChildren().forEach(function (projectile){
+            if (self.ship.alpha === 1) {
+                if ((Math.abs(self.ship.x - projectile.x) <= 30) && (Math.abs(self.ship.y - projectile.y) <= 30)) {
+                    console.log("Ship explode");
+                    self.socket.emit("shipExploded");
+                    self.ship.alpha = 0.5;
+                    self.respawnTimer[self.ship.playerId] = self.time.now;
+                }
+            }
+    });
 }
 
 function addPlayer(self, playerInfo) {
